@@ -13,6 +13,7 @@ require (
 	github.com/jackc/pgx/v4 v4.18.3
 	github.com/joho/godotenv v1.5.1
 	github.com/pkg/errors v0.9.1
+	github.com/rakyll/statik v0.1.7
 	github.com/rs/cors v1.11.1
 	github.com/stretchr/testify v1.10.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250303144028-a0af3efb3deb

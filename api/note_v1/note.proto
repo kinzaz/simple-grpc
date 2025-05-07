@@ -7,8 +7,27 @@ import "google/protobuf/wrappers.proto";
 import "google/protobuf/empty.proto";
 import "google/api/annotations.proto";
 import "validate/validate.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
 
 option go_package = "simple-grpc/pkg/note_v1;note_v1";
+
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+  info: {
+    title: "Note API"
+    version: "1.0.0"
+    contact: {
+      name: "test"
+      email: "test@test.ru"
+    };
+  };
+
+  host: "localhost:8080",
+  schemes: HTTP,
+  schemes: HTTPS,
+  consumes: "application/json",
+  produces: "application/json",
+};
 
 service NoteV1 {
  rpc Create(CreateRequest) returns (CreateResponse){
