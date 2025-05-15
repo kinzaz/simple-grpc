@@ -2,13 +2,18 @@ package app
 
 import (
 	"context"
+	"github.com/natefinch/lumberjack"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"io"
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"simple-grpc/internal/closer"
 	"simple-grpc/internal/config"
 	"simple-grpc/internal/interceptor"
+	"simple-grpc/internal/logger"
 	"sync"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -90,6 +95,7 @@ func (a *App) initDeps(ctx context.Context) error {
 		a.initGRPCServer,
 		a.initHTTPServer,
 		a.initSwaggerServer,
+		a.initLogger,
 	}
 
 	for _, f := range inits {
@@ -133,10 +139,15 @@ func (a *App) initGRPCServer(ctx context.Context) error {
 	return nil
 }
 
-func (a *App) runGRPCServer() error {
-	log.Printf("GRPC server is running on %s", a.serviceProvider.GRPCConfig().Address())
+func (a *App) initLogger(_ context.Context) error {
+	logger.Init(getCore(getAtomicLevel(a.serviceProvider.loggerConfig.Level())))
+	return nil
+}
 
-	list, err := net.Listen("tcp", a.serviceProvider.GRPCConfig().Address())
+func (a *App) runGRPCServer() error {
+	log.Printf("GRPC server is running on %s", a.serviceProvider.grpcConfig.Address())
+
+	list, err := net.Listen("tcp", a.serviceProvider.grpcConfig.Address())
 	if err != nil {
 		return err
 	}
@@ -156,7 +167,7 @@ func (a *App) initHTTPServer(ctx context.Context) error {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 
-	err := desc.RegisterNoteV1HandlerFromEndpoint(ctx, mux, a.serviceProvider.GRPCConfig().Address(), opts)
+	err := desc.RegisterNoteV1HandlerFromEndpoint(ctx, mux, a.serviceProvider.grpcConfig.Address(), opts)
 	if err != nil {
 		return err
 	}
@@ -254,4 +265,39 @@ func serveSwaggerFile(path string) http.HandlerFunc {
 
 		log.Printf("Served swagger file: %s", path)
 	}
+}
+
+func getCore(level zap.AtomicLevel) zapcore.Core {
+	stdout := zapcore.AddSync(os.Stdout)
+
+	file := zapcore.AddSync(&lumberjack.Logger{
+		Filename:   "logs/app.log",
+		MaxSize:    10, // megabytes
+		MaxBackups: 3,
+		MaxAge:     7, // days
+	})
+
+	productionCfg := zap.NewProductionEncoderConfig()
+	productionCfg.TimeKey = "timestamp"
+	productionCfg.EncodeTime = zapcore.ISO8601TimeEncoder
+
+	developmentCfg := zap.NewDevelopmentEncoderConfig()
+	developmentCfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
+
+	consoleEncoder := zapcore.NewConsoleEncoder(developmentCfg)
+	fileEncoder := zapcore.NewJSONEncoder(productionCfg)
+
+	return zapcore.NewTee(
+		zapcore.NewCore(consoleEncoder, stdout, level),
+		zapcore.NewCore(fileEncoder, file, level),
+	)
+}
+
+func getAtomicLevel(logLevel string) zap.AtomicLevel {
+	var level zapcore.Level
+	if err := level.Set(logLevel); err != nil {
+		log.Fatalf("failed to set log level: %v", err)
+	}
+
+	return zap.NewAtomicLevelAt(level)
 }

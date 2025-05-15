@@ -20,6 +20,7 @@ type serviceProvider struct {
 	grpcConfig    config.GRPCConfig
 	httpConfig    config.HTTPConfig
 	swaggerConfig config.SwaggerConfig
+	loggerConfig  config.LoggerConfig
 
 	dbClient       db.Client
 	txManager      db.TxManager
@@ -47,19 +48,6 @@ func (s *serviceProvider) PGConfig() config.PGConfig {
 	return s.pgConfig
 }
 
-func (s *serviceProvider) GRPCConfig() config.GRPCConfig {
-	if s.grpcConfig == nil {
-		cfg, err := config.NewGRPCConfig()
-		if err != nil {
-			log.Fatalf("failed to get grpc config: %s", err.Error())
-		}
-
-		s.grpcConfig = cfg
-	}
-
-	return s.grpcConfig
-}
-
 func (s *serviceProvider) HTTPConfig() config.HTTPConfig {
 	if s.httpConfig == nil {
 		cfg, err := config.NewHTTPConfig()
@@ -71,6 +59,19 @@ func (s *serviceProvider) HTTPConfig() config.HTTPConfig {
 	}
 
 	return s.httpConfig
+}
+
+func (s *serviceProvider) LoggerConfig() config.LoggerConfig {
+	if s.loggerConfig == nil {
+		cfg, err := config.NewLoggerConfig()
+		if err != nil {
+			log.Fatalf("failed to get logger config: %s", err.Error())
+		}
+
+		s.loggerConfig = cfg
+	}
+
+	return s.loggerConfig
 }
 
 func (s *serviceProvider) DBClient(ctx context.Context) db.Client {
